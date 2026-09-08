@@ -34,7 +34,7 @@
     
     /* スクラッチ・景品エリア */
     #ticket-screen { display: none; margin-top: 15px; }
-    .scratch-container { position: relative; width: 280px; height: 160px; margin: 0 auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+    .scratch-container { position: relative; width: 280px; height: 160px; margin: 15px auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
     
     /* 削った下に現れるカード */
     .scratch-behind {
@@ -48,11 +48,12 @@
     /* 上にかぶせるキャンバス */
     #scratch-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer; touch-action: none; }
 
-    #completed-screen { display: none; margin-top: 30px; font-size: 1.1rem; color: #28a745; font-weight: bold; }
+    #completed-screen { display: none; margin-top: 50px; font-size: 1.2rem; color: #28a745; font-weight: bold; }
   </style>
 </head>
 <body>
 
+  <!-- メイン画面（スタンプ帳） -->
   <div id="main-screen">
     <h1>🏮 お祭りスタンプラリー 🏮</h1>
 
@@ -74,9 +75,10 @@
     <p id="status-text">現在 0 / 5 個獲得</p>
   </div>
 
-  <!-- 4. スクラッチ・達成画面 -->
+  <!-- スクラッチ達成画面 -->
   <div id="ticket-screen">
-    <p style="font-weight:bold; color:#d9534f;">🎉 スタンプコンプリート！<br>指で削って特典をゲットしよう！</p>
+    <h1>🎉 スタンプコンプリート！ 🎉</h1>
+    <p style="font-weight:bold; color:#d9534f; font-size:1.1rem;">指でこすって特典をゲットしよう！</p>
     
     <div class="scratch-container">
       <div class="scratch-behind">
@@ -89,7 +91,8 @@
     <button class="btn-action" id="redeem-btn" style="background:#d9534f; margin-top: 20px; display:none;" onclick="completeRedeem()">使用済みにする</button>
   </div>
 
-  <div id="completed-screen">✅ 引換が完了しました。<br>ご参加ありがとうございました！</div>
+  <!-- 完了画面 -->
+  <div id="completed-screen">✅ 引換が完了しました。<br><br>ご参加ありがとうございました！</div>
 
   <script>
     // ★ご自身のGASのWEBアプリURLに書き換えてください★
@@ -100,7 +103,7 @@
     let visitedSpots = JSON.parse(localStorage.getItem('fest_visited') || '[]');
     let isRedeemed = localStorage.getItem('fest_redeemed') === 'true';
     let html5QrCode = null;
-    let canScan = false; // 2秒の読み取り制限用フラグ
+    let canScan = false;
 
     window.onload = function() {
       if (isRedeemed) { showEndScreen(); return; }
@@ -111,10 +114,12 @@
       visitedSpots.forEach(s => { document.getElementById('spot-' + s)?.classList.add('active'); });
       document.getElementById('status-text').innerText = `現在 ${visitedSpots.length} / 5 個獲得`;
       
-      if (visitedSpots.length === 5) {
+      // 5個揃ったらメイン画面を隠してスクラッチ画面に自動切替
+      if (visitedSpots.length >= 5) {
         stopCamera();
-        document.getElementById('start-cam-btn').style.display = 'none';
+        document.getElementById('main-screen').style.display = 'none';
         document.getElementById('ticket-screen').style.display = 'block';
+        window.scrollTo(0, 0); // 画面一番上へスクロール
         initScratch();
       }
     }
@@ -123,12 +128,11 @@
       document.getElementById('reader-wrapper').style.display = 'block';
       document.getElementById('start-cam-btn').style.display = 'none';
       
-      canScan = false; // 起動直後はスキャン無効
+      canScan = false;
       
       html5QrCode = new Html5Qrcode("reader");
       html5QrCode.start({ facingMode: "environment" }, { fps: 15, aspectRatio: 1.0 }, onScanSuccess)
       .then(() => {
-        // カメラ起動後、2秒経過してから読み取りを有効化
         setTimeout(() => {
           canScan = true;
         }, 2000);
@@ -149,11 +153,11 @@
     }
 
     function onScanSuccess(decodedText) {
-      if (!canScan) return; // 2秒経っていなければ無視
+      if (!canScan) return;
 
       let spotMatch = decodedText.match(/(?:SPOT_)?([1-5])/i);
       if (spotMatch) {
-        canScan = false; // 二重読み取り防止
+        canScan = false;
         let spotNum = spotMatch[1];
         if (!visitedSpots.includes(spotNum)) {
           visitedSpots.push(spotNum);
@@ -161,7 +165,7 @@
           
           stopCamera();
 
-          // スプレッドシートへ非同期送信
+          // スプレッドシートへ送信
           fetch(GAS_URL, {
             method: "POST",
             mode: "no-cors",
@@ -169,7 +173,13 @@
             body: JSON.stringify({ action: "checkIn", userId: userId, spot: spotNum, visitedSpots: visitedSpots })
           });
 
-          alert(`🎉 読み取り完了！\nスポット ${spotNum} のスタンプを獲得しました！`);
+          // 5個目の場合はアラートを出した後に自動切り替え
+          if (visitedSpots.length >= 5) {
+            alert(`🎉 読み取り完了！\n最後のスタンプを獲得しました！`);
+          } else {
+            alert(`🎉 読み取り完了！\nスポット ${spotNum} のスタンプを獲得しました！`);
+          }
+          
           updateUI();
         } else {
           stopCamera();
@@ -179,11 +189,14 @@
     }
 
     /* --- スクラッチ機能 --- */
+    let scratchInitialized = false;
     function initScratch() {
+      if (scratchInitialized) return;
+      scratchInitialized = true;
+
       const canvas = document.getElementById('scratch-canvas');
       const ctx = canvas.getContext('2d');
 
-      // 銀色の表面を塗る
       ctx.fillStyle = '#C0C0C0';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = '#666';
@@ -201,10 +214,9 @@
 
         ctx.globalCompositeOperation = 'destination-out';
         ctx.beginPath();
-        ctx.arc(x, y, 18, 0, Math.PI * 2);
+        ctx.arc(x, y, 20, 0, Math.PI * 2);
         ctx.fill();
 
-        // 削った面積を簡易チェックして一定以上削られたらボタン表示
         document.getElementById('redeem-btn').style.display = 'inline-block';
       }
 
@@ -234,6 +246,7 @@
       document.getElementById('main-screen').style.display = 'none';
       document.getElementById('ticket-screen').style.display = 'none';
       document.getElementById('completed-screen').style.display = 'block';
+      window.scrollTo(0, 0);
     }
   </script>
 </body>
