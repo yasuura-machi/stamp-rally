@@ -6,22 +6,33 @@
   <title>お祭りスタンプラリー</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
-    body { font-family: sans-serif; text-align: center; background: #fdfbf7; margin: 0; padding: 15px; }
-    h1 { font-size: 1.3rem; color: #d9534f; }
-    .pentagon-container { position: relative; width: 240px; height: 240px; margin: 15px auto; }
-    .spot {
-      position: absolute; width: 45px; height: 45px; border-radius: 50%;
-      background: #e0e0e0; border: 2px solid #ccc; display: flex;
-      align-items: center; justify-content: center; font-weight: bold; color: #888;
-    }
-    .spot-1 { top: 0px; left: 97px; } .spot-2 { top: 70px; left: 190px; }
-    .spot-3 { top: 180px; left: 150px; } .spot-4 { top: 180px; left: 42px; }
-    .spot-5 { top: 70px; left: 5px; }
-    .spot.active { background: #ff6b6b; border-color: #d9534f; color: #fff; transform: scale(1.1); }
-    .btn-action { background: #0275d8; color: white; border: none; padding: 14px 28px; font-size: 1rem; font-weight: bold; border-radius: 25px; margin: 15px auto; }
-    #reader-wrapper { display: none; width: 280px; margin: 15px auto; border: 3px solid #0275d8; border-radius: 12px; overflow: hidden; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; background: #fdfbf7; margin: 0; padding: 15px; color: #333; }
+    h1 { font-size: 1.3rem; color: #d9534f; margin-bottom: 10px; }
+    
+    /* カメラ表示領域（上部に配置） */
+    #reader-wrapper { display: none; width: 280px; margin: 10px auto; border: 3px solid #0275d8; border-radius: 12px; overflow: hidden; background: #000; }
     #reader { width: 100%; }
-    #ticket-screen { display: none; background: #fff3cd; border: 2px dashed #ffebaa; padding: 15px; border-radius: 12px; }
+
+    /* スタンプ横並びレイアウト */
+    .stamp-container { display: flex; justify-content: center; gap: 8px; margin: 20px auto; }
+    .spot {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: #e0e0e0; border: 2px solid #ccc; display: flex;
+      align-items: center; justify-content: center; font-weight: bold; font-size: 1.1rem; color: #888;
+      transition: all 0.3s ease;
+    }
+
+    /* 各スポットの個別点灯カラー */
+    .spot-1.active { background: #ff4d4d; border-color: #cc0000; color: #fff; box-shadow: 0 0 8px rgba(255,77,77,0.6); transform: scale(1.08); }
+    .spot-2.active { background: #3399ff; border-color: #0066cc; color: #fff; box-shadow: 0 0 8px rgba(51,153,255,0.6); transform: scale(1.08); }
+    .spot-3.active { background: #2ed573; border-color: #1e90ff; color: #fff; box-shadow: 0 0 8px rgba(46,213,115,0.6); transform: scale(1.08); }
+    .spot-4.active { background: #ffa502; border-color: #eccc68; color: #fff; box-shadow: 0 0 8px rgba(255,165,2,0.6); transform: scale(1.08); }
+    .spot-5.active { background: #a55eea; border-color: #8854d0; color: #fff; box-shadow: 0 0 8px rgba(165,94,234,0.6); transform: scale(1.08); }
+
+    .btn-action { background: #0275d8; color: white; border: none; padding: 14px 28px; font-size: 1rem; font-weight: bold; border-radius: 25px; margin: 10px auto; cursor: pointer; }
+    #status-text { font-size: 1rem; font-weight: bold; margin: 10px 0; }
+    
+    #ticket-screen { display: none; background: #fff3cd; border: 2px dashed #ffebaa; padding: 15px; border-radius: 12px; margin-top: 15px; }
     #completed-screen { display: none; margin-top: 30px; font-size: 1.1rem; color: #28a745; font-weight: bold; }
   </style>
 </head>
@@ -29,17 +40,23 @@
 
   <div id="main-screen">
     <h1>🏮 お祭りスタンプラリー 🏮</h1>
-    <div class="pentagon-container">
-      <div id="spot-1" class="spot spot-1">1</div>
-      <div id="spot-2" class="spot spot-2">2</div>
-      <div id="spot-3" class="spot spot-3">3</div>
-      <div id="spot-4" class="spot spot-4">4</div>
-      <div id="spot-5" class="spot spot-5">5</div>
-    </div>
-    <p id="status-text">現在 0 / 5 個獲得</p>
-    <button class="btn-action" id="start-cam-btn" onclick="startCamera()">📷 カメラを起動する</button>
-    <button class="btn-action" id="stop-cam-btn" onclick="stopCamera()" style="display:none; background:#6c757d;">カメラを閉じる</button>
+
+    <!-- 1. カメラ表示画面（見やすい上部に配置） -->
     <div id="reader-wrapper"><div id="reader"></div></div>
+
+    <!-- 2. カメラ起動ボタン -->
+    <button class="btn-action" id="start-cam-btn" onclick="startCamera()">📷 カメラを起動する</button>
+
+    <!-- 3. 横並びのスタンプ -->
+    <div class="stamp-container">
+      <div id="spot-1" class="spot spot-1">①</div>
+      <div id="spot-2" class="spot spot-2">②</div>
+      <div id="spot-3" class="spot spot-3">③</div>
+      <div id="spot-4" class="spot spot-4">④</div>
+      <div id="spot-5" class="spot spot-5">⑤</div>
+    </div>
+
+    <p id="status-text">現在 0 / 5 個獲得</p>
   </div>
 
   <div id="ticket-screen">
@@ -51,7 +68,7 @@
   <div id="completed-screen">✅ 引換が完了しました！</div>
 
   <script>
-    // ★ここにGASのWEBアプリURLを貼り付けます★
+    // ★ご自身のGASのWEBアプリURLに書き換えてください★
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxPKCWqiGosCQOd15_isRm1nHo7JgOW6yoZxY9DWxHYj3RkZU017zTGsNlGnIShuS2Mjw/exec";
 
     let userId = localStorage.getItem('fest_user_id') || 'U_' + Math.random().toString(36).substring(2, 9);
@@ -78,17 +95,21 @@
     function startCamera() {
       document.getElementById('reader-wrapper').style.display = 'block';
       document.getElementById('start-cam-btn').style.display = 'none';
-      document.getElementById('stop-cam-btn').style.display = 'inline-block';
+      
       html5QrCode = new Html5Qrcode("reader");
       html5QrCode.start({ facingMode: "environment" }, { fps: 15, aspectRatio: 1.0 }, onScanSuccess);
     }
 
     function stopCamera() {
       if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().then(() => { document.getElementById('reader-wrapper').style.display = 'none'; });
+        html5QrCode.stop().then(() => { 
+          document.getElementById('reader-wrapper').style.display = 'none'; 
+          document.getElementById('start-cam-btn').style.display = 'inline-block';
+        }).catch(err => console.error(err));
+      } else {
+        document.getElementById('reader-wrapper').style.display = 'none';
+        document.getElementById('start-cam-btn').style.display = 'inline-block';
       }
-      document.getElementById('start-cam-btn').style.display = 'inline-block';
-      document.getElementById('stop-cam-btn').style.display = 'none';
     }
 
     function onScanSuccess(decodedText) {
@@ -99,7 +120,10 @@
           visitedSpots.push(spotNum);
           localStorage.setItem('fest_visited', JSON.stringify(visitedSpots));
           
-          // GASへ非同期送信（裏で送信するので画面が止まりません）
+          // 読み取り成功時に自動でカメラを停止
+          stopCamera();
+
+          // スプレッドシートへ非同期送信
           fetch(GAS_URL, {
             method: "POST",
             mode: "no-cors",
@@ -107,9 +131,10 @@
             body: JSON.stringify({ action: "checkIn", userId: userId, spot: spotNum, visitedSpots: visitedSpots })
           });
 
-          alert(`🎉 スポット ${spotNum} のスタンプを獲得しました！`);
+          alert(`🎉 読み取り完了！\nスポット ${spotNum} のスタンプを獲得しました！`);
           updateUI();
         } else {
+          stopCamera();
           alert(`スポット ${spotNum} はすでに獲得済みです。`);
         }
       }
