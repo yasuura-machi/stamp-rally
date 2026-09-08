@@ -114,12 +114,11 @@
       visitedSpots.forEach(s => { document.getElementById('spot-' + s)?.classList.add('active'); });
       document.getElementById('status-text').innerText = `現在 ${visitedSpots.length} / 5 個獲得`;
       
-      // 5個揃ったらメイン画面を隠してスクラッチ画面に自動切替
+      // 5個揃ったら画面切替を即実行
       if (visitedSpots.length >= 5) {
-        stopCamera();
         document.getElementById('main-screen').style.display = 'none';
         document.getElementById('ticket-screen').style.display = 'block';
-        window.scrollTo(0, 0); // 画面一番上へスクロール
+        window.scrollTo(0, 0);
         initScratch();
       }
     }
@@ -139,16 +138,21 @@
       });
     }
 
-    function stopCamera() {
+    function stopCamera(callback) {
       canScan = false;
       if (html5QrCode && html5QrCode.isScanning) {
         html5QrCode.stop().then(() => { 
           document.getElementById('reader-wrapper').style.display = 'none'; 
           document.getElementById('start-cam-btn').style.display = 'inline-block';
-        }).catch(err => console.error(err));
+          if (callback) callback();
+        }).catch(err => {
+          console.error(err);
+          if (callback) callback();
+        });
       } else {
         document.getElementById('reader-wrapper').style.display = 'none';
         document.getElementById('start-cam-btn').style.display = 'inline-block';
+        if (callback) callback();
       }
     }
 
@@ -163,9 +167,7 @@
           visitedSpots.push(spotNum);
           localStorage.setItem('fest_visited', JSON.stringify(visitedSpots));
           
-          stopCamera();
-
-          // スプレッドシートへ送信
+          // スプレッドシートへデータ送信（バックグラウンド処理）
           fetch(GAS_URL, {
             method: "POST",
             mode: "no-cors",
@@ -173,17 +175,12 @@
             body: JSON.stringify({ action: "checkIn", userId: userId, spot: spotNum, visitedSpots: visitedSpots })
           });
 
-          // 5個目の場合はアラートを出した後に自動切り替え
-          if (visitedSpots.length >= 5) {
-            alert(`🎉 読み取り完了！\n最後のスタンプを獲得しました！`);
-          } else {
-            alert(`🎉 読み取り完了！\nスポット ${spotNum} のスタンプを獲得しました！`);
-          }
-          
-          updateUI();
+          // カメラを閉じてからUIを即更新（5個揃っていればスクラッチ画面へ直行）
+          stopCamera(() => {
+            updateUI();
+          });
         } else {
           stopCamera();
-          alert(`スポット ${spotNum} はすでに獲得済みです。`);
         }
       }
     }
