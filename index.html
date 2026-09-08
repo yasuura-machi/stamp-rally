@@ -10,11 +10,9 @@
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align: center; background: #fdfbf7; margin: 0; padding: 15px; color: #333; user-select: none; }
     h1 { font-size: 1.3rem; color: #d9534f; margin-bottom: 10px; }
     
-    /* カメラ表示領域 */
     #reader-wrapper { display: none; width: 280px; margin: 10px auto; border: 3px solid #0275d8; border-radius: 12px; overflow: hidden; background: #000; }
     #reader { width: 100%; }
 
-    /* スタンプ横並び */
     .stamp-container { display: flex; justify-content: center; gap: 8px; margin: 20px auto; }
     .spot {
       width: 48px; height: 48px; border-radius: 50%;
@@ -23,7 +21,6 @@
       transition: all 0.3s ease;
     }
 
-    /* 各スポットの点灯カラー */
     .spot-1.active { background: #ff4d4d; border-color: #cc0000; color: #fff; box-shadow: 0 0 8px rgba(255,77,77,0.6); transform: scale(1.08); }
     .spot-2.active { background: #3399ff; border-color: #0066cc; color: #fff; box-shadow: 0 0 8px rgba(51,153,255,0.6); transform: scale(1.08); }
     .spot-3.active { background: #2ed573; border-color: #11998e; color: #fff; box-shadow: 0 0 8px rgba(46,213,115,0.6); transform: scale(1.08); }
@@ -33,7 +30,6 @@
     .btn-action { background: #0275d8; color: white; border: none; padding: 14px 28px; font-size: 1rem; font-weight: bold; border-radius: 25px; margin: 10px auto; cursor: pointer; }
     #status-text { font-size: 1rem; font-weight: bold; margin: 10px 0; }
     
-    /* スクラッチ・景品エリア */
     #ticket-screen { display: none; margin-top: 15px; }
     .scratch-container { position: relative; width: 280px; height: 160px; margin: 15px auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
     
@@ -47,7 +43,7 @@
 
     #scratch-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer; touch-action: none; }
 
-    /* スタッフ専用スライドバーUI */
+    /* スライドバー */
     #slider-wrapper { display: none; margin: 25px auto 10px; width: 280px; }
     .slide-container {
       position: relative; width: 100%; height: 50px; background: #e0e0e0;
@@ -62,6 +58,7 @@
       background: #d9534f; color: white; border-radius: 50%; display: flex;
       align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem;
       cursor: pointer; touch-action: none; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+      transition: left 0.1s ease-out;
     }
 
     #completed-screen { display: none; margin-top: 50px; font-size: 1.2rem; color: #28a745; font-weight: bold; }
@@ -69,7 +66,6 @@
 </head>
 <body>
 
-  <!-- 1. メイン画面（スタンプ帳） -->
   <div id="main-screen">
     <h1>🏮 お祭りスタンプラリー 🏮</h1>
 
@@ -88,7 +84,6 @@
     <p id="status-text">現在 0 / 5 個獲得</p>
   </div>
 
-  <!-- 2. スクラッチ達成画面 -->
   <div id="ticket-screen">
     <h1>🎉 スタンプコンプリート！ 🎉</h1>
     <p style="font-weight:bold; color:#d9534f; font-size:1.1rem; margin-bottom:5px;">指でこすって特典をゲットしよう！</p>
@@ -101,20 +96,19 @@
       <canvas id="scratch-canvas" width="280" height="160"></canvas>
     </div>
 
-    <!-- スタッフ専用操作スライドバー -->
     <div id="slider-wrapper">
       <p style="font-size:0.8rem; color:#888; margin-bottom:5px;">※ここからはスタッフが操作します</p>
-      <div class="slide-container">
+      <div class="slide-container" id="slide-container">
         <div class="slide-text">👉 右へスライドしてチケット使用</div>
         <div id="slide-handle" class="slide-handle">＞</div>
       </div>
     </div>
   </div>
 
-  <!-- 3. 完了画面 -->
   <div id="completed-screen">✅ 引換が完了しました。<br><br>ご参加ありがとうございました！</div>
 
   <script>
+    // ★必ずご自身のGASのURL（https://script.google.com/macros/s/.../exec）に差し替えてください★
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxPKCWqiGosCQOd15_isRm1nHo7JgOW6yoZxY9DWxHYj3RkZU017zTGsNlGnIShuS2Mjw/exec";
 
     let userId = localStorage.getItem('fest_user_id') || 'U_' + Math.random().toString(36).substring(2, 9);
@@ -148,7 +142,6 @@
       }
     }
 
-    // ★自動で画面を切り替えるメイン処理★
     function showScratchScreen() {
       if (html5QrCode) {
         try { html5QrCode.stop(); } catch(e){}
@@ -201,7 +194,6 @@
             body: JSON.stringify({ action: "checkIn", userId: userId, spot: spotNum, visitedSpots: visitedSpots })
           });
 
-          // 5個目のQRをスキャンした瞬間、一切の待機なくスクラッチ画面へ直行切り替え
           if (checkIsComplete()) {
             showScratchScreen();
           } else {
@@ -243,7 +235,6 @@
         ctx.arc(x, y, 22, 0, Math.PI * 2);
         ctx.fill();
 
-        // 削り始めたらスライドバーを表示
         document.getElementById('slider-wrapper').style.display = 'block';
       }
 
@@ -256,56 +247,74 @@
       window.addEventListener('touchend', () => { isDrawing = false; });
     }
 
-    /* --- スタッフ用スライドバー機能 --- */
+    /* --- 誤動作防止スライドバー機能 --- */
     function initSlider() {
       const handle = document.getElementById('slide-handle');
-      const container = handle.parentElement;
+      const container = document.getElementById('slide-container');
       let isDragging = false;
       let startX = 0;
-      let maxSlide = container.clientWidth - handle.clientWidth - 4;
+      let currentLeft = 2;
 
-      function startDrag(e) {
+      function onStart(e) {
         isDragging = true;
-        startX = (e.touches ? e.touches[0].clientX : e.clientX) - handle.offsetLeft;
+        handle.style.transition = 'none'; // ドラッグ中はアニメーションをオフ
+        let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        startX = clientX - handle.offsetLeft;
       }
 
-      function moveDrag(e) {
+      function onMove(e) {
         if (!isDragging) return;
-        let currentX = (e.touches ? e.touches[0].clientX : e.clientX) - startX;
-        if (currentX < 2) currentX = 2;
-        if (currentX > maxSlide) currentX = maxSlide;
-        handle.style.left = currentX + 'px';
+        let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        let x = clientX - startX;
 
-        // 右端までスライド完了した時の処理
-        if (currentX >= maxSlide - 5) {
-          isDragging = false;
-          completeRedeem();
+        let maxSlide = container.clientWidth - handle.clientWidth - 4;
+        if (x < 2) x = 2;
+        if (x > maxSlide) x = maxSlide;
+
+        currentLeft = x;
+        handle.style.left = x + 'px';
+      }
+
+      function onEnd() {
+        if (!isDragging) return;
+        isDragging = false;
+        handle.style.transition = 'left 0.2s ease-out'; // 戻るアニメーション
+
+        let maxSlide = container.clientWidth - handle.clientWidth - 4;
+        
+        // 85%以上確実に右に動かした場合のみ完了
+        if (currentLeft >= maxSlide * 0.85) {
+          handle.style.left = maxSlide + 'px';
+          setTimeout(() => {
+            completeRedeem();
+          }, 150);
+        } else {
+          // 途中で放した場合は元に戻す
+          handle.style.left = '2px';
+          currentLeft = 2;
         }
       }
 
-      function endDrag() {
-        if (!isDragging) return;
-        isDragging = false;
-        handle.style.left = '2px'; // 端まで届かなければ戻す
-      }
+      handle.addEventListener('mousedown', onStart);
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onEnd);
 
-      handle.addEventListener('mousedown', startDrag);
-      window.addEventListener('mousemove', moveDrag);
-      window.addEventListener('mouseup', endDrag);
-
-      handle.addEventListener('touchstart', startDrag);
-      window.addEventListener('touchmove', moveDrag);
-      window.addEventListener('touchend', endDrag);
+      handle.addEventListener('touchstart', onStart, {passive: true});
+      window.addEventListener('touchmove', onMove, {passive: true});
+      window.addEventListener('touchend', onEnd);
     }
 
     function completeRedeem() {
       localStorage.setItem('fest_redeemed', 'true');
+      
+      // スプレッドシートへ送信
       fetch(GAS_URL, {
         method: "POST",
         mode: "no-cors",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "redeem", userId: userId })
       });
+      
       showEndScreen();
     }
 
