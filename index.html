@@ -2,11 +2,12 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <title>お祭りスタンプラリー</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; background: #fdfbf7; margin: 0; padding: 15px; color: #333; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align: center; background: #fdfbf7; margin: 0; padding: 15px; color: #333; user-select: none; }
     h1 { font-size: 1.3rem; color: #d9534f; margin-bottom: 10px; }
     
     /* カメラ表示領域 */
@@ -36,7 +37,6 @@
     #ticket-screen { display: none; margin-top: 15px; }
     .scratch-container { position: relative; width: 280px; height: 160px; margin: 15px auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
     
-    /* 削った下に現れるカード */
     .scratch-behind {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: #fff3cd; border: 2px dashed #ffebaa; box-sizing: border-box;
@@ -45,25 +45,38 @@
     .scratch-behind h3 { margin: 0; color: #856404; font-size: 1.2rem; }
     .scratch-behind p { margin: 5px 0 0; color: #666; font-size: 0.85rem; }
 
-    /* 上にかぶせるキャンバス */
     #scratch-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer; touch-action: none; }
+
+    /* スタッフ専用スライドバーUI */
+    #slider-wrapper { display: none; margin: 25px auto 10px; width: 280px; }
+    .slide-container {
+      position: relative; width: 100%; height: 50px; background: #e0e0e0;
+      border-radius: 25px; overflow: hidden; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
+    }
+    .slide-text {
+      position: absolute; width: 100%; height: 100%; line-height: 50px;
+      font-size: 0.85rem; font-weight: bold; color: #666; text-align: center; pointer-events: none;
+    }
+    .slide-handle {
+      position: absolute; top: 2px; left: 2px; width: 46px; height: 46px;
+      background: #d9534f; color: white; border-radius: 50%; display: flex;
+      align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem;
+      cursor: pointer; touch-action: none; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
 
     #completed-screen { display: none; margin-top: 50px; font-size: 1.2rem; color: #28a745; font-weight: bold; }
   </style>
 </head>
 <body>
 
-  <!-- メイン画面（スタンプ帳） -->
+  <!-- 1. メイン画面（スタンプ帳） -->
   <div id="main-screen">
     <h1>🏮 お祭りスタンプラリー 🏮</h1>
 
-    <!-- 1. カメラ表示画面 -->
     <div id="reader-wrapper"><div id="reader"></div></div>
 
-    <!-- 2. カメラ起動ボタン -->
     <button class="btn-action" id="start-cam-btn" onclick="startCamera()">📷 カメラを起動する</button>
 
-    <!-- 3. 横並びスタンプ -->
     <div class="stamp-container">
       <div id="spot-1" class="spot spot-1">①</div>
       <div id="spot-2" class="spot spot-2">②</div>
@@ -75,10 +88,10 @@
     <p id="status-text">現在 0 / 5 個獲得</p>
   </div>
 
-  <!-- スクラッチ達成画面 -->
+  <!-- 2. スクラッチ達成画面 -->
   <div id="ticket-screen">
     <h1>🎉 スタンプコンプリート！ 🎉</h1>
-    <p style="font-weight:bold; color:#d9534f; font-size:1.1rem;">指でこすって特典をゲットしよう！</p>
+    <p style="font-weight:bold; color:#d9534f; font-size:1.1rem; margin-bottom:5px;">指でこすって特典をゲットしよう！</p>
     
     <div class="scratch-container">
       <div class="scratch-behind">
@@ -88,19 +101,27 @@
       <canvas id="scratch-canvas" width="280" height="160"></canvas>
     </div>
 
-    <button class="btn-action" id="redeem-btn" style="background:#d9534f; margin-top: 20px; display:none;" onclick="completeRedeem()">使用済みにする</button>
+    <!-- スタッフ専用操作スライドバー -->
+    <div id="slider-wrapper">
+      <p style="font-size:0.8rem; color:#888; margin-bottom:5px;">※ここからはスタッフが操作します</p>
+      <div class="slide-container">
+        <div class="slide-text">👉 右へスライドしてチケット使用</div>
+        <div id="slide-handle" class="slide-handle">＞</div>
+      </div>
+    </div>
   </div>
 
-  <!-- 完了画面 -->
+  <!-- 3. 完了画面 -->
   <div id="completed-screen">✅ 引換が完了しました。<br><br>ご参加ありがとうございました！</div>
 
   <script>
-    // ★ご自身のGASのWEBアプリURLに書き換えてください★
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxPKCWqiGosCQOd15_isRm1nHo7JgOW6yoZxY9DWxHYj3RkZU017zTGsNlGnIShuS2Mjw/exec";
 
     let userId = localStorage.getItem('fest_user_id') || 'U_' + Math.random().toString(36).substring(2, 9);
     localStorage.setItem('fest_user_id', userId);
-    let visitedSpots = JSON.parse(localStorage.getItem('fest_visited') || '[]');
+    
+    let rawVisited = JSON.parse(localStorage.getItem('fest_visited') || '[]');
+    let visitedSpots = [...new Set(rawVisited.map(String))];
     let isRedeemed = localStorage.getItem('fest_redeemed') === 'true';
     let html5QrCode = null;
     let canScan = false;
@@ -110,49 +131,54 @@
       updateUI();
     };
 
+    function checkIsComplete() {
+      return ['1', '2', '3', '4', '5'].every(s => visitedSpots.includes(s));
+    }
+
     function updateUI() {
-      visitedSpots.forEach(s => { document.getElementById('spot-' + s)?.classList.add('active'); });
-      document.getElementById('status-text').innerText = `現在 ${visitedSpots.length} / 5 個獲得`;
+      visitedSpots.forEach(s => { 
+        document.getElementById('spot-' + s)?.classList.add('active'); 
+      });
       
-      // 5個揃ったら画面切替を即実行
-      if (visitedSpots.length >= 5) {
-        document.getElementById('main-screen').style.display = 'none';
-        document.getElementById('ticket-screen').style.display = 'block';
-        window.scrollTo(0, 0);
-        initScratch();
+      let count = ['1', '2', '3', '4', '5'].filter(s => visitedSpots.includes(s)).length;
+      document.getElementById('status-text').innerText = `現在 ${count} / 5 個獲得`;
+      
+      if (checkIsComplete()) {
+        showScratchScreen();
       }
+    }
+
+    // ★自動で画面を切り替えるメイン処理★
+    function showScratchScreen() {
+      if (html5QrCode) {
+        try { html5QrCode.stop(); } catch(e){}
+      }
+      document.getElementById('main-screen').style.display = 'none';
+      document.getElementById('ticket-screen').style.display = 'block';
+      window.scrollTo(0, 0);
+      initScratch();
+      initSlider();
     }
 
     function startCamera() {
       document.getElementById('reader-wrapper').style.display = 'block';
       document.getElementById('start-cam-btn').style.display = 'none';
-      
       canScan = false;
       
       html5QrCode = new Html5Qrcode("reader");
       html5QrCode.start({ facingMode: "environment" }, { fps: 15, aspectRatio: 1.0 }, onScanSuccess)
       .then(() => {
-        setTimeout(() => {
-          canScan = true;
-        }, 2000);
+        setTimeout(() => { canScan = true; }, 2000);
       });
     }
 
-    function stopCamera(callback) {
+    function stopCamera() {
       canScan = false;
-      if (html5QrCode && html5QrCode.isScanning) {
+      if (html5QrCode) {
         html5QrCode.stop().then(() => { 
           document.getElementById('reader-wrapper').style.display = 'none'; 
           document.getElementById('start-cam-btn').style.display = 'inline-block';
-          if (callback) callback();
-        }).catch(err => {
-          console.error(err);
-          if (callback) callback();
-        });
-      } else {
-        document.getElementById('reader-wrapper').style.display = 'none';
-        document.getElementById('start-cam-btn').style.display = 'inline-block';
-        if (callback) callback();
+        }).catch(err => console.error(err));
       }
     }
 
@@ -162,12 +188,12 @@
       let spotMatch = decodedText.match(/(?:SPOT_)?([1-5])/i);
       if (spotMatch) {
         canScan = false;
-        let spotNum = spotMatch[1];
+        let spotNum = String(spotMatch[1]);
+        
         if (!visitedSpots.includes(spotNum)) {
           visitedSpots.push(spotNum);
           localStorage.setItem('fest_visited', JSON.stringify(visitedSpots));
           
-          // スプレッドシートへデータ送信（バックグラウンド処理）
           fetch(GAS_URL, {
             method: "POST",
             mode: "no-cors",
@@ -175,10 +201,13 @@
             body: JSON.stringify({ action: "checkIn", userId: userId, spot: spotNum, visitedSpots: visitedSpots })
           });
 
-          // カメラを閉じてからUIを即更新（5個揃っていればスクラッチ画面へ直行）
-          stopCamera(() => {
+          // 5個目のQRをスキャンした瞬間、一切の待機なくスクラッチ画面へ直行切り替え
+          if (checkIsComplete()) {
+            showScratchScreen();
+          } else {
+            stopCamera();
             updateUI();
-          });
+          }
         } else {
           stopCamera();
         }
@@ -211,10 +240,11 @@
 
         ctx.globalCompositeOperation = 'destination-out';
         ctx.beginPath();
-        ctx.arc(x, y, 20, 0, Math.PI * 2);
+        ctx.arc(x, y, 22, 0, Math.PI * 2);
         ctx.fill();
 
-        document.getElementById('redeem-btn').style.display = 'inline-block';
+        // 削り始めたらスライドバーを表示
+        document.getElementById('slider-wrapper').style.display = 'block';
       }
 
       canvas.addEventListener('mousedown', (e) => { isDrawing = true; scratch(e); });
@@ -226,17 +256,57 @@
       window.addEventListener('touchend', () => { isDrawing = false; });
     }
 
-    function completeRedeem() {
-      if (confirm("スタッフ確認用：本当に使用済みにしますか？")) {
-        localStorage.setItem('fest_redeemed', 'true');
-        fetch(GAS_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "redeem", userId: userId })
-        });
-        showEndScreen();
+    /* --- スタッフ用スライドバー機能 --- */
+    function initSlider() {
+      const handle = document.getElementById('slide-handle');
+      const container = handle.parentElement;
+      let isDragging = false;
+      let startX = 0;
+      let maxSlide = container.clientWidth - handle.clientWidth - 4;
+
+      function startDrag(e) {
+        isDragging = true;
+        startX = (e.touches ? e.touches[0].clientX : e.clientX) - handle.offsetLeft;
       }
+
+      function moveDrag(e) {
+        if (!isDragging) return;
+        let currentX = (e.touches ? e.touches[0].clientX : e.clientX) - startX;
+        if (currentX < 2) currentX = 2;
+        if (currentX > maxSlide) currentX = maxSlide;
+        handle.style.left = currentX + 'px';
+
+        // 右端までスライド完了した時の処理
+        if (currentX >= maxSlide - 5) {
+          isDragging = false;
+          completeRedeem();
+        }
+      }
+
+      function endDrag() {
+        if (!isDragging) return;
+        isDragging = false;
+        handle.style.left = '2px'; // 端まで届かなければ戻す
+      }
+
+      handle.addEventListener('mousedown', startDrag);
+      window.addEventListener('mousemove', moveDrag);
+      window.addEventListener('mouseup', endDrag);
+
+      handle.addEventListener('touchstart', startDrag);
+      window.addEventListener('touchmove', moveDrag);
+      window.addEventListener('touchend', endDrag);
+    }
+
+    function completeRedeem() {
+      localStorage.setItem('fest_redeemed', 'true');
+      fetch(GAS_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "redeem", userId: userId })
+      });
+      showEndScreen();
     }
 
     function showEndScreen() {
