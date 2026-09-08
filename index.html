@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>お祭りスタンプラリー</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body { font-family: sans-serif; text-align: center; background: #fdfbf7; margin: 0; padding: 15px; }
+    h1 { font-size: 1.3rem; color: #d9534f; }
+    .pentagon-container { position: relative; width: 240px; height: 240px; margin: 15px auto; }
+    .spot {
+      position: absolute; width: 45px; height: 45px; border-radius: 50%;
+      background: #e0e0e0; border: 2px solid #ccc; display: flex;
+      align-items: center; justify-content: center; font-weight: bold; color: #888;
+    }
+    .spot-1 { top: 0px; left: 97px; } .spot-2 { top: 70px; left: 190px; }
+    .spot-3 { top: 180px; left: 150px; } .spot-4 { top: 180px; left: 42px; }
+    .spot-5 { top: 70px; left: 5px; }
+    .spot.active { background: #ff6b6b; border-color: #d9534f; color: #fff; transform: scale(1.1); }
+    .btn-action { background: #0275d8; color: white; border: none; padding: 14px 28px; font-size: 1rem; font-weight: bold; border-radius: 25px; margin: 15px auto; }
+    #reader-wrapper { display: none; width: 280px; margin: 15px auto; border: 3px solid #0275d8; border-radius: 12px; overflow: hidden; }
+    #reader { width: 100%; }
+    #ticket-screen { display: none; background: #fff3cd; border: 2px dashed #ffebaa; padding: 15px; border-radius: 12px; }
+    #completed-screen { display: none; margin-top: 30px; font-size: 1.1rem; color: #28a745; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <div id="main-screen">
+    <h1>🏮 お祭りスタンプラリー 🏮</h1>
+    <div class="pentagon-container">
+      <div id="spot-1" class="spot spot-1">1</div>
+      <div id="spot-2" class="spot spot-2">2</div>
+      <div id="spot-3" class="spot spot-3">3</div>
+      <div id="spot-4" class="spot spot-4">4</div>
+      <div id="spot-5" class="spot spot-5">5</div>
+    </div>
+    <p id="status-text">現在 0 / 5 個獲得</p>
+    <button class="btn-action" id="start-cam-btn" onclick="startCamera()">📷 カメラを起動する</button>
+    <button class="btn-action" id="stop-cam-btn" onclick="stopCamera()" style="display:none; background:#6c757d;">カメラを閉じる</button>
+    <div id="reader-wrapper"><div id="reader"></div></div>
+  </div>
+
+  <div id="ticket-screen">
+    <h3>🎁 ガチャガチャ引換券 🎁</h3>
+    <p>スタンプ達成！スタッフに見せてね。</p>
+    <button class="btn-action" style="background:#d9534f;" onclick="completeRedeem()">使用済みにする</button>
+  </div>
+
+  <div id="completed-screen">✅ 引換が完了しました！</div>
+
+  <script>
+    // ★ここにGASのWEBアプリURLを貼り付けます★
+    const GAS_URL = "★GASのWEBアプリURL★";
+
+    let userId = localStorage.getItem('fest_user_id') || 'U_' + Math.random().toString(36).substring(2, 9);
+    localStorage.setItem('fest_user_id', userId);
+    let visitedSpots = JSON.parse(localStorage.getItem('fest_visited') || '[]');
+    let isRedeemed = localStorage.getItem('fest_redeemed') === 'true';
+    let html5QrCode = null;
+
+    window.onload = function() {
+      if (isRedeemed) { showEndScreen(); return; }
+      updateUI();
+    };
+
+    function updateUI() {
+      visitedSpots.forEach(s => { document.getElementById('spot-' + s)?.classList.add('active'); });
+      document.getElementById('status-text').innerText = `現在 ${visitedSpots.length} / 5 個獲得`;
+      if (visitedSpots.length === 5) {
+        stopCamera();
+        document.getElementById('start-cam-btn').style.display = 'none';
+        document.getElementById('ticket-screen').style.display = 'block';
+      }
+    }
+
+    function startCamera() {
+      document.getElementById('reader-wrapper').style.display = 'block';
+      document.getElementById('start-cam-btn').style.display = 'none';
+      document.getElementById('stop-cam-btn').style.display = 'inline-block';
+      html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.start({ facingMode: "environment" }, { fps: 15, aspectRatio: 1.0 }, onScanSuccess);
+    }
+
+    function stopCamera() {
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => { document.getElementById('reader-wrapper').style.display = 'none'; });
+      }
+      document.getElementById('start-cam-btn').style.display = 'inline-block';
+      document.getElementById('stop-cam-btn').style.display = 'none';
+    }
+
+    function onScanSuccess(decodedText) {
+      let spotMatch = decodedText.match(/(?:SPOT_)?([1-5])/i);
+      if (spotMatch) {
+        let spotNum = spotMatch[1];
+        if (!visitedSpots.includes(spotNum)) {
+          visitedSpots.push(spotNum);
+          localStorage.setItem('fest_visited', JSON.stringify(visitedSpots));
+          
+          // GASへ非同期送信（裏で送信するので画面が止まりません）
+          fetch(GAS_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "checkIn", userId: userId, spot: spotNum, visitedSpots: visitedSpots })
+          });
+
+          alert(`🎉 スポット ${spotNum} のスタンプを獲得しました！`);
+          updateUI();
+        } else {
+          alert(`スポット ${spotNum} はすでに獲得済みです。`);
+        }
+      }
+    }
+
+    function completeRedeem() {
+      if (confirm("本当に使用済みにしますか？")) {
+        localStorage.setItem('fest_redeemed', 'true');
+        fetch(GAS_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "redeem", userId: userId })
+        });
+        showEndScreen();
+      }
+    }
+
+    function showEndScreen() {
+      document.getElementById('main-screen').style.display = 'none';
+      document.getElementById('ticket-screen').style.display = 'none';
+      document.getElementById('completed-screen').style.display = 'block';
+    }
+  </script>
+</body>
+</html>
